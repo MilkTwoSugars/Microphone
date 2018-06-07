@@ -1,176 +1,111 @@
-var t = 0;
-var numLines = 10;
-var speed = 1;
-var sound;
 var amplitude;
 var fft;
-var min;;
-var max;
-var res;
-var squares = [];
+var mic;
 
+var rectangles = [];
 
-// function preload() {
-//     sound = loadSound('song2.wav');
-// }
+var bands = 128;
+
+var micAmp = 1;
+
 
 function setup() {
-    createCanvas(windowWidth, windowHeight)
-    background(50);
-    amplitude = new p5.Amplitude();
-    fft = new p5.FFT();
-    res = width / 32;
+    createCanvas(windowWidth, windowHeight);
+    //background(255);
     colorMode(HSB);
-    angleMode(DEGREES);
+    //blendMode(LIGHTEST)
+    initialiseSound();
 
-    matrix = new Array(32);
-    for (let i = 0; i < matrix.length; i++) {
-        matrix[i] = new Array(32);
+    for (var i = 0; i < bands; i++) {
+
+        let position = createVector(random(width), random(height));
+
+        let direction = createVector(random(-1, 1), random(-1, 1));
+
+        let r = new Rectangle(position, 0, direction, random(50));
+
+        rectangles.push(r);
     }
 
-    for (var i = 0; i < 1024; i++){
-        let x = map(i, 0, 1024, 0, width);
-        squares[i] = new Square(x, height / 2, 10);
-    }
 
-    mic = new p5.AudioIn();
-    mic.amp(1.0);
-
-  // start the Audio Input.
-  // By default, it does not .connect() (to the computer speakers)
-  mic.connect();
-  mic.start();
-
-  min = 0;
-  max = 0;
 
 }
 
 function draw() {
-    background(255);
-    // if (!sound.isPlaying()) {
-    //     sound.play();
-    // }
+    background(255, 255, 10);
 
-    var vol = mic.getLevel();
+    mic.amp(micAmp);
 
-    if (vol > max) {
-        max = vol;
+    let a = mic.getLevel();
+
+    let spectrum = fft.analyze();
+
+    for (var i = 0; i < bands; i++) {
+        rectangles[i].update(spectrum[i]);
+        rectangles[i].render(spectrum[i]);
     }
-    if (vol < min) {
-        min = vol;
-    }
-
-    console.log(vol);
-    console.log(min + " " + max);
-
-    drawExampleOne();
-
-    fill(vol * 10000);
-    
-    ellipse(width /2, height - vol * 1000, vol * 100, vol * 100);
-
-    
 
 }
 
-function drawExampleOne() {
-    var a = amplitude.getLevel();
-
-    var spectrum = fft.analyze();
-
-    noStroke();
-
-    for (var i = 0; i < matrix.length; i++) {
-        for (var j = 0; j < matrix[i].length; j++) {
-            fill(spectrum[i * matrix.length + j], a * 100, 50);
-            var s = map(spectrum[i * matrix.length + j], 0, 255, 10, res);
-            ellipse(j * res + (res / 2), i * res + (res / 2), s, s);
-        }
-    }
+function mousePressed () {
+    micAmp = map(mouseX, 0, width, 0, 5);
 }
 
-function drawExampleTwo() {
-    var a = amplitude.getLevel();
-    var s = fft.analyze();
-
-    translate(width /2, height /2);
-    for (var i = 0; i < s.length; i++) {
-        var angle = map(i, 0, s.length, 0, 360)
-        let amp = s[i];
-        let r = map(amp, 0, 255, 40, 400);
-        let x = r * sin(angle);
-        let y = r * cos(angle);
-        stroke(s[i], 255, 255)
-        line(0,0,x,y)
+class Rectangle {
+    constructor(position, size, direction, startAngle) {
+        this.pos = position;
+        this.size = size;
+        this.dir = direction;
+        this.speed = 1;
+        this.angle = startAngle;
     }
-}
 
-function drawExampleThree () {
-    rectMode(CENTER);
-    noStroke();
+    update(a) {
+        let m = map(a, 0, 255, -0.1, 0.1);
+        this.angle += m;
 
-    for (var i = 0; i < squares.length; i++){
-        fill(spectrum[i], 255, 255, 50);
-        squares[i].height = spectrum[i];
-        squares[i].speed = spectrum[i] / 4;
-        squares[i].update();
-        squares[i].draw();
+        this.pos.add(this.dir);
+
+        this.size = map(a, 0, 255, 0, 150);
+
+        if (this.pos.x > width + this.size) { this.pos.x = 0 - this.size };
+        if (this.pos.x < 0 - this.size) { this.pos.x = width + this.size };
+        if (this.pos.y > height + this.size) { this.pos.y = 0 - this.size };
+        if (this.pos.y < 0 - this.size) { this.pos.y = height + this.size };
+
     }
-}
 
-function drawExampleFour () {
-    var a = amplitude.getLevel();
-    var spectrum = fft.analyze();
-    
-    rectMode(CENTER);
-
-    for (var i = 0; i < matrix.length; i++) {
-        for (var j = 0; j < matrix[i].length; j++) {
+    render(a) {
+            let b = a * (a / 75);
             push();
-            var s = map(spectrum[i * matrix.length + j], 0, 255, 10, res);
-            fill(spectrum[i * matrix.length + j], a * 100, 50);
-            let v = createVector(width / 2, height / 2);
-            translate(i * res, j * res);
-            rotate(radians(Math.pow(spectrum[i * matrix.length + j], 2)));
-            rect(0, 0, s, s);
+            noFill();
+            fill(255 - b, 255, a);
+            stroke(255 - b, 255, a);
+            strokeWeight(2);
+            translate(this.pos.x, this.pos.y);
+            rotate(this.angle);
+            rectMode(CENTER);
+            ellipse(0, 0, this.size, this.size);
+            line(0, 0, this.size, this.size);
+            ellipse(this.size, this.size, this.size / 2);
+
+            push();
+            translate(this.size, this.size);
+            rotate(this.angle * 2);
+            line(0, 0, this.size / 2, this.size / 2);
+            ellipse(this.size / 2, this.size / 2, this.size / 4);
             pop();
-        }
+
+            pop();
     }
 }
 
-function drawExampleFive () {
-    for (var i = 0; i < spectrum.length; i++){
-        stroke(spectrum[i], 255, 255);
-        let x = map(i, 0, spectrum.length, width / 2, 0);
-        line (x, 0, x, height);
-    }
 
-    for (var i = 0; i < spectrum.length; i++){
-        stroke(spectrum[i], 255, 255);
-        let x = map(i, 0, spectrum.length, width / 2, width);
-        line (x, 0, x, height);
-    }
-}
-
-class Square {
-    constructor(x, y, size) {
-        this.x = x;
-        this.y = y;
-        this.height = size;
-        this.width = size;
-        this.speed = 0;
-    }
-
-    update(speed) {
-        this.x += this.speed;
-        this.speed = 0;
-        if (this.x > width){
-            this.x = 0;
-        }
-    }
-
-    draw () {
-        ellipse(this.x, this.y, this.height, this.height);
-    }
+function initialiseSound() {
+    amplitude = new p5.Amplitude();
+    fft = new p5.FFT(0.9, bands);
+    mic = new p5.AudioIn();
+    mic.amp(micAmp);
+    mic.connect();
+    mic.start();
 }
