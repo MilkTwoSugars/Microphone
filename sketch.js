@@ -11,9 +11,7 @@ var micAmp = 1;
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
-    //background(255);
     colorMode(HSB);
-    //blendMode(LIGHTEST)
     initialiseSound();
 
     for (var i = 0; i < bands; i++) {
@@ -26,9 +24,6 @@ function setup() {
 
         rectangles.push(r);
     }
-
-
-
 }
 
 function draw() {
